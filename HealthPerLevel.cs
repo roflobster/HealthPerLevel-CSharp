@@ -1,4 +1,4 @@
-﻿using HealthPerLevel_cs.config;
+using HealthPerLevel_cs.config;
 using HealthPerLevel_cs.Interfaces;
 using SPTarkov.Common.Models.Logging;
 using SPTarkov.DI.Annotations;
@@ -276,7 +276,7 @@ namespace HealthPerLevel_cs
                     ModifyHealth(accLv.Value, charType, healthSkill, bodyPartName, bodyPart);
                 }
             }
-            if (_config.PMC.modify_energy_and_hydration)
+            if (charType.modify_energy_and_hydration)
             {
                 ModyfyMetabolism(accLv.Value, character, charType);
             }
@@ -308,7 +308,7 @@ namespace HealthPerLevel_cs
             }
             if (charType is PMC)
             { 
-                restSpaceLevel = character.Hideout.Areas.Where(a => a.Type == HideoutAreas.RestSpace).Select(a => a.Level).FirstOrDefault();
+                restSpaceLevel = character.Hideout?.Areas?.Where(a => a.Type == HideoutAreas.RestSpace).Select(a => a.Level).FirstOrDefault() ?? 0;
                 maxEnergy = restSpaceLevel == 3 ? 110 : 100;
             }
             if (_config.debug)
@@ -402,7 +402,7 @@ namespace HealthPerLevel_cs
             bodyPart.Health.Maximum = Math.Floor(AddHpPerLevel(increment, charType, bodyPart, bodyBaseHp, increasePerLevel) +
                         AddHpPerSkillLevel(charType, hpSkillv, bodyPart, increasePerHpSkill));
             CheckIfTooMuchHealth(bodyPartName, bodyPart);
-            ResetScavHealthOnLoad(bodyPart, baseHealth);
+            ResetScavHealthOnLoad(bodyPart, charType);
             if (_config.debug)
             {
                 _logger.Info(LogPrefix + $"BodyPart: {bodyPartName}, Health: ({bodyPart.Health.Current}/{bodyPart.Health.Maximum})");
@@ -436,12 +436,13 @@ namespace HealthPerLevel_cs
 
         private int CheckLevelCap<T, E, G, H>(PmcData character, ICharacter<T, E, G, H> charType)
         {
-            return charType.level_cap ? Math.Min(character.Info.Level.Value, charType.level_cap_value) : character.Info.Level.Value;
+            int level = character.Info?.Level ?? 1;
+            return charType.level_cap ? Math.Min(level, charType.level_cap_value) : level;
         }
 
-        private void ResetScavHealthOnLoad(BodyPartHealth bodyPart, IHealth baseHealth)
+        private void ResetScavHealthOnLoad<T, E, G, H>(BodyPartHealth bodyPart, ICharacter<T, E, G, H> charType)
         {
-            if (baseHealth is config.BodyHealth && isOnLoad)
+            if (charType is SCAV && isOnLoad)
             {
                 bodyPart.Health.Current = bodyPart.Health.Maximum;
             }
