@@ -1,4 +1,4 @@
-﻿using SPTarkov.Common.Models.Logging;
+using SPTarkov.Common.Models.Logging;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Helpers;
@@ -21,7 +21,7 @@ public record ModMetadata : IModMetadata
     public string Name { get; init; } = "Health Per Level";
     public string Author { get; init; } = "fryciarz7";
     public List<string>? Contributors { get; init; }
-    public SemanticVersioning.Version Version { get; init; } = new("2.2.0");
+    public SemanticVersioning.Version Version { get; init; } = new("2.2.1");
     public SemanticVersioning.Range SptVersion { get; init; } = new("~4.1.0");
 
     public List<string>? Incompatibilities { get; init; }
