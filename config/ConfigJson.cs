@@ -1,4 +1,4 @@
-﻿using HealthPerLevel_cs.Interfaces;
+using HealthPerLevel_cs.Interfaces;
 
 namespace HealthPerLevel_cs.config
 {
@@ -43,6 +43,8 @@ namespace HealthPerLevel_cs.config
         public bool health_per_health_skill_level { get; set; }
         public BodyHealth increase_per_health_skill_level { get; set; }
         public bool modify_energy_and_hydration { get; set; }
+        public bool? modify_metabolism { get; set; }
+        public bool? metabolism { get; set; }
         public int metabolism_skill_levels_per_increment { get; set; }
         public bool metabolism_skill_cap { get; set; }
         public int metabolism_skill_cap_value { get; set; }
@@ -62,6 +64,8 @@ namespace HealthPerLevel_cs.config
         public bool health_per_health_skill_level { get; set; }
         public BodyHealth increase_per_health_skill_level { get; set; }
         public bool modify_energy_and_hydration { get; set; }
+        public bool? modify_metabolism { get; set; }
+        public bool? metabolism { get; set; }
         public int metabolism_skill_levels_per_increment { get; set; }
         public bool metabolism_skill_cap { get; set; }
         public int metabolism_skill_cap_value { get; set; }

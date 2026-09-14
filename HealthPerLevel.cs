@@ -24,7 +24,7 @@ namespace HealthPerLevel_cs
         private readonly ModHelper _modHelper;
         private readonly ISptLogger<HealthPerLevel> _logger;
 
-        private readonly ConfigJson _config;
+        private ConfigJson _config;
         private const string LogPrefix = "[HealthPerLevel] ";
 
         private bool isOnLoad = false;
@@ -35,13 +35,30 @@ namespace HealthPerLevel_cs
             _modHelper = modHelper;
             _logger = logger;
 
-            string? pathToMod = _modHelper.GetAbsolutePathToModFolder(Assembly.GetExecutingAssembly());
-            _config = _modHelper.GetJsonDataFromFile<ConfigJson>(pathToMod, "config/config.json");
+            LoadConfig();
+        }
+
+        private void LoadConfig()
+        {
+            try
+            {
+                string? pathToMod = _modHelper.GetAbsolutePathToModFolder(Assembly.GetExecutingAssembly());
+                var loaded = _modHelper.GetJsonDataFromFile<ConfigJson>(pathToMod, "config/config.json");
+                if (loaded != null)
+                {
+                    _config = loaded;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"{LogPrefix}Error reading config/config.json: {ex.Message}");
+            }
         }
 
         public Task DoStuff(bool _isOnLoad)
         {
             isOnLoad = _isOnLoad;
+            LoadConfig();
             if (_config.debug)
             {
                 _logger.Info($"{LogPrefix}Executing DoStuff. isOnLoad: {isOnLoad}, enabled: {_config.enabled}, restoreDefaults: {_config.restoreDefaults}");
@@ -276,9 +293,55 @@ namespace HealthPerLevel_cs
                     ModifyHealth(accLv.Value, charType, healthSkill, bodyPartName, bodyPart);
                 }
             }
-            if (charType.modify_energy_and_hydration)
+            if (ShouldModifyMetabolism(charType) && !restoreDefault)
             {
                 ModyfyMetabolism(accLv.Value, character, charType);
+            }
+            else
+            {
+                ResetMetabolism(character, charType);
+            }
+        }
+
+        private static bool ShouldModifyMetabolism<T, E, G, H>(ICharacter<T, E, G, H> charType)
+        {
+            if (charType.metabolism.HasValue)
+            {
+                return charType.metabolism.Value;
+            }
+            if (charType.modify_metabolism.HasValue)
+            {
+                return charType.modify_metabolism.Value;
+            }
+            return charType.modify_energy_and_hydration;
+        }
+
+        private void ResetMetabolism<T, E, G, H>(PmcData character, ICharacter<T, E, G, H> charType)
+        {
+            int? restSpaceLevel = 0;
+            double maxEnergy = 100;
+            if (charType is PMC)
+            {
+                restSpaceLevel = character.Hideout?.Areas?.Where(a => a.Type == HideoutAreas.RestSpace).Select(a => a.Level).FirstOrDefault() ?? 0;
+                maxEnergy = restSpaceLevel == 3 ? 110 : 100;
+            }
+
+            if (character.Health?.Hydration != null)
+            {
+                character.Health.Hydration.Maximum = 100;
+                if (character.Health.Hydration.Current > character.Health.Hydration.Maximum)
+                {
+                    character.Health.Hydration.Current = character.Health.Hydration.Maximum;
+                }
+            }
+
+            if (character.Health?.Energy != null)
+            {
+                character.Health.Energy.Maximum = maxEnergy;
+                if (character.Health.Energy.Current > character.Health.Energy.Maximum)
+                {
+                    character.Health.Energy.Current = character.Health.Energy.Maximum;
+                }
             }
         }
 
@@ -297,7 +360,11 @@ namespace HealthPerLevel_cs
 
         private void ModyfyMetabolism<T, E, G, H>(double accLv, PmcData character, ICharacter<T, E, G, H> charType)
         {
-            IMetabolism metabolismPerSkill = charType.metabolism_per_skill as IMetabolism;
+            IMetabolism? metabolismPerSkill = charType.metabolism_per_skill as IMetabolism;
+            if (metabolismPerSkill == null)
+            {
+                return;
+            }
             double metabolismSkill = GetMetabolismLevel(character, charType);
 
             int? restSpaceLevel = 0;
@@ -316,8 +383,23 @@ namespace HealthPerLevel_cs
                 _logger.Info($"{LogPrefix}Calculating metabolism. metabolismSkill: {metabolismSkill}");
             }
 
-            character.Health.Hydration.Maximum = 100 + CalculateMetabolismPerSkill(charType, metabolismSkill, metabolismPerSkill.hydration);
-            character.Health.Energy.Maximum = maxEnergy + CalculateMetabolismPerSkill(charType, metabolismSkill, metabolismPerSkill.energy);
+            if (character.Health?.Hydration != null)
+            {
+                character.Health.Hydration.Maximum = 100 + CalculateMetabolismPerSkill(charType, metabolismSkill, metabolismPerSkill.hydration);
+                if (character.Health.Hydration.Current > character.Health.Hydration.Maximum)
+                {
+                    character.Health.Hydration.Current = character.Health.Hydration.Maximum;
+                }
+            }
+
+            if (character.Health?.Energy != null)
+            {
+                character.Health.Energy.Maximum = maxEnergy + CalculateMetabolismPerSkill(charType, metabolismSkill, metabolismPerSkill.energy);
+                if (character.Health.Energy.Current > character.Health.Energy.Maximum)
+                {
+                    character.Health.Energy.Current = character.Health.Energy.Maximum;
+                }
+            }
         }
 
         private double CalculateMetabolismPerSkill<T, E, G, H>(ICharacter<T, E, G, H> charType, double metabolismSkill, float skillBonus)
